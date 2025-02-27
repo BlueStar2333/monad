@@ -371,7 +371,10 @@ export default {
           type: 'error',
           message: err
         })
-        this.submitLoading = false
+        const self = this
+        setTimeout(() => {
+          self.submitLoading = false
+        }, 50000)
       })
     },
     editForm() {
