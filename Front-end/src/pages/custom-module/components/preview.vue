@@ -24,7 +24,7 @@
         <!--滑动条-->
         <el-slider v-if="item.type === 6" v-model="item.content" :class="{ 'verify-error': correct[index] === false }" :min="item.min" :max="item.max" style="padding: 0 20px" :disabled="redactStateC === '查看'" />
         <!--输入建议选择框-->
-        <el-autocomplete v-if="item.type === 7" v-model="item.content" :class="{ 'verify-error': correct[index] === false, 'regular-error': item.regularError }" class="inline-input" :fetch-suggestions="querySearch" placeholder="请输入内容" :disabled="redactStateC === '查看'" @focus="sugFocus(index, 'pub')" @select="selectTips($event.value, index)" @blur="selectTips(item.content, index)" />
+        <el-autocomplete v-if="item.type === 7" v-model="item.content" :class="{ 'verify-error': correct[index] === false, 'regular-error': item.regularError }" class="inline-input" :fetch-suggestions="querySearch" placeholder="请输入内容" :disabled="redactStateC === '查看'" @focus="sugFocus(index, 'pub')" @select="selectTips($event.value, index)" @blur="selectTips(item.content, index)" clearable/>
         <span v-if="item.regularError" class="regular-tips">{{ item.regularTips }}</span>
         <!--自增表格-->
         <el-table v-if="item.type === 20" :class="{ 'verify-error': correct[index] === false }" :data="item.content" class="body-input-content" style="width: 100%" border :header-cell-style="{backgroundColor: '#efefef'}">
@@ -32,8 +32,9 @@
           <el-table-column v-for="(column,colIdx) in item.header" :key="colIdx" :label="column">
             <template slot-scope="scope">
               <div class="table-forms">
+<!--                争对广东省体外录入做特殊处理-->
                 <el-input
-                  v-if="item.bodyForm[colIdx].type === 0"
+                  v-if="item.bodyForm[colIdx].type === 0 && !(viewData.table_name.includes('广东省人民医院体外录入') && item.header[colIdx] === '停跳液量mL' && !item.content[scope.$index][colIdx - 1].includes('(ml)'))"
                   v-model="item.content[scope.$index][colIdx]"
                   :class="{ 'regular-error': item.regularError[scope.$index][colIdx], 'verify-error': correct[index] !== false && (correct[index] === false || correct[index][scope.$index][colIdx] === false) }"
                   placeholder="请输入内容"
@@ -75,6 +76,7 @@
                   @select="selectTips($event.value, index, { row: scope.$index, col: colIdx })"
                   @blur="selectTips(item.content[scope.$index][colIdx], index, { row: scope.$index, col: colIdx })"
                   @focus="sugFocus(index, 'table', colIdx)"
+                  clearable
                 />
                 <span v-if="item.regularError[scope.$index][colIdx]" class="regular-tips">{{ item.bodyForm[colIdx].regularTips }}</span>
               </div>

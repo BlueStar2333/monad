@@ -292,6 +292,12 @@ export default {
           this.saveLoading = false
           this.$eventBus.$emit('refresh')
         }
+      }).catch(err => {
+        this.$message({
+          message: 'submission failed,network error!',
+          type: 'error'
+        })
+        this.saveLoading = false
       })
     },
     edit(close = true) {
@@ -320,6 +326,12 @@ export default {
           this.saveLoading = false
           this.$eventBus.$emit('refresh')
         }
+      }).catch(err => {
+        this.$message({
+          message: 'submission failed,network error!',
+          type: 'error'
+        })
+        this.saveLoading = false
       })
     }
   }
