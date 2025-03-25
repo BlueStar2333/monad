@@ -39,7 +39,7 @@
                 <el-date-picker v-if="item.bodyForm[colIdx].type === 4" v-model="item.content[scope.$index][colIdx]" @keyup.enter.native="enterLine($event, index, scope.$index, colIdx)" :class="{ 'verify-error': correct[index] !== false && (correct[index] === false || correct[index][scope.$index][colIdx] === false) }" :type="item.bodyForm[colIdx].dateType" placeholder="选择日期" style="width: 100%" size="mini" format="yyyy-MM-dd HH:mm" value-format="yyyy-MM-dd HH:mm" :disabled="redactStateC === '查看'" :id="'input' + index + scope.$index + colIdx"/>
                 <el-input-number v-if="item.bodyForm[colIdx].type === 5" v-model="item.content[scope.$index][colIdx]" @keyup.enter.native="enterLine($event, index, scope.$index, colIdx)" :class="{ 'verify-error': correct[index] !== false && (correct[index] === false || correct[index][scope.$index][colIdx] === false) }" @change="numChange(item.content[scope.$index][colIdx], index, { row: scope.$index, col: colIdx })" label="数" style="width: 100%" size="mini" :disabled="redactStateC === '查看'" :id="'input' + index + scope.$index + colIdx"/>
                 <el-slider v-if="item.bodyForm[colIdx].type === 6" v-model="item.content[scope.$index][colIdx]" @keyup.enter.native="enterLine($event, index, scope.$index, colIdx)" :class="{ 'verify-error': correct[index] !== false && (correct[index] === false || correct[index][scope.$index][colIdx] === false) }" :min="item.bodyForm[colIdx].min" :max="item.bodyForm[colIdx].max" style="padding: 0 20px" size="mini" :disabled="redactStateC === '查看'" :id="'input' + index + scope.$index + colIdx"/>
-                <el-autocomplete v-if="item.bodyForm[colIdx].type === 7" v-model="item.content[scope.$index][colIdx]" @keyup.enter.native="enterLine($event, index, scope.$index, colIdx)" :class="{ 'regular-error': item.regularError[scope.$index][colIdx], 'verify-error': correct[index] !== false && (correct[index] === false || correct[index][scope.$index][colIdx] === false) }" @select="selectTips($event.value, index, { row: scope.$index, col: colIdx })" @blur="selectTips(item.content[scope.$index][colIdx], index, { row: scope.$index, col: colIdx })" class="tb-inline-input" :fetch-suggestions="querySearch" placeholder="请输入内容" size="mini" :disabled="redactStateC === '查看'" @focus="sugFocus(index, 'table', colIdx)" :id="'input' + index + scope.$index + colIdx" clearable/>
+                <el-autocomplete v-if="item.bodyForm[colIdx].type === 7 && !(previewData.table_name.includes('广东省人民医院体外录入') && item.header[colIdx] === '灌注方式' && !checkEligibility(item.content[scope.$index][colIdx - 2]))" v-model="item.content[scope.$index][colIdx]" @keyup.enter.native="enterLine($event, index, scope.$index, colIdx)" :class="{ 'regular-error': item.regularError[scope.$index][colIdx], 'verify-error': correct[index] !== false && (correct[index] === false || correct[index][scope.$index][colIdx] === false) }" @select="selectTips($event.value, index, { row: scope.$index, col: colIdx })" @blur="selectTips(item.content[scope.$index][colIdx], index, { row: scope.$index, col: colIdx })" @change="changeDiyTbSelest(item.content[scope.$index][colIdx], index, { row: scope.$index, col: colIdx })" class="tb-inline-input" :fetch-suggestions="querySearch" placeholder="请输入内容" size="mini" :disabled="redactStateC === '查看'" @focus="sugFocus(index, 'table', colIdx)" :id="'input' + index + scope.$index + colIdx" clearable/>
                 <span v-if="item.regularError[scope.$index][colIdx]" class="regular-tips">{{ item.bodyForm[colIdx].regularTips }}</span>
               </div>
             </template>
@@ -122,6 +122,11 @@ export default {
       this.redactStateC = this.previewData.redactState
       this.correct = JSON.parse(this.previewData.verify_correct)
     },
+    checkEligibility(str) {
+      if (str) {
+        return str.includes('(ml)')
+      }
+    },
     // 多选框，保证选中后值的顺序一致，避免校验出错
     ecgChange(idx) {
       this.previewData.content[idx].content.sort()
@@ -168,10 +173,19 @@ export default {
         }
       }
     },
+    changeDiyTbSelest(content, idx, coordinate) { // 争对广东省体外录入做特殊处理
+      console.log(content, idx, coordinate,789)
+      if (this.previewData.content[idx].header[coordinate.col] === '操作及处置') { // 争对广东省体外录入做特殊处理
+        this.previewData.content[idx].content[coordinate.row][coordinate.col + 1] = ''
+        this.previewData.content[idx].content[coordinate.row][coordinate.col + 2] = ''
+      }
+    },
     selectTips(content, idx, coordinate) {
       let result = ''
       if (coordinate) {
-        this.previewData.content[idx].bodyForm[coordinate.col].regularTips = '只能选择建议内容'
+        if (this.previewData.content[idx].header[coordinate.col] === '灌注方式') { // 争对广东省体外录入做特殊处理
+          this.previewData.content[idx].bodyForm[coordinate.col].regularTips = ''
+        } else this.previewData.content[idx].bodyForm[coordinate.col].regularTips = '只能选择建议内容'
         if (content === '' || !this.diyContent[idx].bodyForm[coordinate.col].suggestion.split(',').includes(content)) {
           const newErrorRow = { ...this.previewData.content[idx]['regularError'][coordinate.row] }
           newErrorRow[coordinate.col] = true
@@ -322,7 +336,13 @@ export default {
                 }
               }
               if (itemOne.bodyForm[indexThree].type === 7) {
-                errorRegular += this.selectTips(itemThree, indexOne, { row: indexTwo, col: indexThree })
+                if (itemOne.header[indexThree] === '灌注方式') { // 争对广东体外循环表单
+                  if ((itemOne.content[indexTwo][indexThree - 2] + '|').includes('ml')) {
+                    errorRegular += this.selectTips(itemThree, indexOne, { row: indexTwo, col: indexThree })
+                  }
+                } else {
+                  errorRegular += this.selectTips(itemThree, indexOne, { row: indexTwo, col: indexThree })
+                }
               }
             })
           })

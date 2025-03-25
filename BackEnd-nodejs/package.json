@@ -37,6 +37,6 @@
     "multiparty": "^4.2.1",
     "mysql": "^2.18.1",
     "nodemailer": "^6.9.16",
-    "openai": "^4.85.4"
+    "openai": "^4.89.0"
   }
 }
