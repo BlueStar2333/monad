@@ -10,6 +10,16 @@
   const jwt = require('jsonwebtoken');
   const secretKey = 'huaxiyiyuandiyform@2024@2333';
 
+  // 加密函数
+function encrypt(text) {
+  const encryptionKey = '0123456789abcdef0123456789abcdef'; // 32字符密钥
+  const iv = crypto.randomBytes(16); // 随机生成16字节IV
+  const cipher = crypto.createCipheriv('aes-256-cbc', encryptionKey, iv);
+  let encrypted = cipher.update(text, 'utf8', 'hex');
+  encrypted += cipher.final('hex');
+  return { y: encrypted, e: iv.toString('hex') }; // 返回加密数据和IV
+}
+
   
 function generateToken(data = { userId: 'user_id' }) {
   return jwt.sign(data, secretKey, { expiresIn: '1h' });
@@ -250,6 +260,7 @@ function authToken(req, res, next) {
     convertToTimeZone,
     generateToken,
     refreshT,
-    authToken
+    authToken,
+    encrypt
   };
 })(global);

@@ -1,3 +1,5 @@
+
+const OpenAI = require("openai")
 /**
  * 用户模块控制器
  */
@@ -292,6 +294,65 @@ const ArcherySendMail = (req, res) => {
 // sendEmailWithCsvAttachment(testData,'1061368119@qq.com','select *','我的申请',1,'王豪')
 
 
+
+const keyMap = {
+  'DeepSeek-V3' : 'sk-1b5ca57b43d94654937ef629a77839e7'
+}
+
+// 查询AI模型apikey，加密返回
+const ArcheryAIk = (req, res) => {
+  
+  $api.PostArg(req).then(({ keyType }) => {
+    encryptData = global.$api.encrypt(keyMap[keyType])
+    $api.ReturnJson(res, { code: YES, msg: "查询成功", data: encryptData });
+  })
+  
+};
+
+
+
+const openai = new OpenAI({
+  baseURL: 'https://api.deepseek.com',
+  apiKey: 'sk-1b5ca57b43d94654937ef629a77839e7'
+});
+
+// 获取AI回复的异步函数
+async function getAiRes(messages) {
+  try {
+    const completion = await openai.chat.completions.create({
+      messages: messages,
+      model: "deepseek-chat",
+      temperature: 0.0,
+      top_p: 1,
+      frequency_penalty: 0
+    });
+    // 返回AI回复内容
+    return completion.choices[0].message.content;
+  } catch (error) {
+    console.error("获取AI回复失败:", error);
+    throw error; // 抛出错误以便上层捕获
+  }
+}
+
+// 查询跟AI对话
+const ArcheryAIChat = async (req, res) => {
+  
+  try {
+    // 解析请求参数
+    const { messages } = await $api.PostArg(req);
+
+    // 获取AI回复
+    const aiRes = await getAiRes(messages);
+
+    // 返回成功响应
+    $api.ReturnJson(res, { code: YES, msg: "查询成功", data: aiRes });
+  } catch (error) {
+    // 返回错误响应
+    $api.ReturnJson(res, { code: NO, msg: "查询失败", data: error.message });
+  }
+  
+};
+
 module.exports = {
   CoNoticeList, // 查询公告列表
   CoDeleteNotice, // 删除用户
@@ -299,4 +360,6 @@ module.exports = {
 
   ArcherySendMailBefore, // archery系统发送审核通知接口
   ArcherySendMail, // archery系统发送审核结果接口
+  ArcheryAIk, // archery系统获取AI模型的key
+  ArcheryAIChat, // archery系统跟ai对话
 };

@@ -4,8 +4,8 @@ import store from '@/store'
 import router from "@/router"
 import { getToken, setToken } from '@/utils/auth'
 
-const url = 'http://localhost:3100/api/'
-// const url = 'http://172.18.0.1:3100/api/' // 服务器内网
+// const url = 'http://localhost:3100/api/'
+const url = 'http://172.18.0.1:3100/api/' // 服务器内网
 // const url = 'http://172.27.11.79:3100/api/'
 
 const service = axios.create({
