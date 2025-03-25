@@ -18,12 +18,12 @@ const FormListRouter = {
       name: '表单填写',
       meta: { title: '表单填写', noCache: true }
     },
-    {
-      path: 'admin-data',
-      component: () => import('@/pages/fill-out/admin-data'),
-      name: '清理数据用',
-      meta: { title: '清理数据用', noCache: true }
-    }
+    // {
+    //   path: 'admin-data',
+    //   component: () => import('@/pages/fill-out/admin-data'),
+    //   name: '清理数据用',
+    //   meta: { title: '清理数据用', noCache: true }
+    // }
   ]
 }
 

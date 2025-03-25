@@ -15,7 +15,7 @@
           <el-radio v-for="(radio,idx) in item.select" :key="idx" v-model="item.content" :label="radio" :disabled="redactStateC === '查看'">{{ radio }}</el-radio>
         </div>
         <!--多选-->
-        <el-checkbox-group v-if="item.type === 3" v-model="item.content" :class="{ 'verify-error': correct[index] === false }">
+        <el-checkbox-group v-if="item.type === 3" v-model="item.content" @change="ecgChange(index)" :class="{ 'verify-error': correct[index] === false }">
           <el-checkbox v-for="(checkbox,idx) in item.select" :key="idx" :label="checkbox" :disabled="redactStateC === '查看'">{{ checkbox }}</el-checkbox>
         </el-checkbox-group>
         <!--日期选择-->
@@ -25,7 +25,7 @@
         <!--滑动条-->
         <el-slider v-if="item.type === 6" v-model="item.content" :class="{ 'verify-error': correct[index] === false }" :min="item.min" :max="item.max" style="padding: 0 20px" :disabled="redactStateC === '查看'" />
         <!--输入建议选择框-->
-        <el-autocomplete v-if="item.type === 7" v-model="item.content" :class="{ 'verify-error': correct[index] === false, 'regular-error': item.regularError }" class="inline-input" :fetch-suggestions="querySearch" placeholder="请输入内容" :disabled="redactStateC === '查看'" @focus="sugFocus(index, 'pub')" @select="selectTips($event.value, index)" @blur="selectTips(item.content, index)" />
+        <el-autocomplete v-if="item.type === 7" v-model="item.content" :class="{ 'verify-error': correct[index] === false, 'regular-error': item.regularError }" class="inline-input" :fetch-suggestions="querySearch" placeholder="请输入内容" :disabled="redactStateC === '查看'" @focus="sugFocus(index, 'pub')" @select="selectTips($event.value, index)" @blur="selectTips(item.content, index)" clearable/>
         <span v-if="item.regularError" class="regular-tips">{{ item.regularTips }}</span>
         <!--自增表格-->
         <el-table v-if="item.type === 20" :class="{ 'verify-error': correct[index] === false }" :data="item.content" class="body-input-content" style="width: 100%" border :header-cell-style="{backgroundColor: '#efefef'}">
@@ -33,12 +33,13 @@
           <el-table-column v-for="(column,colIdx) in item.header" :key="colIdx" :label="column">
             <template slot-scope="scope">
               <div class="table-forms">
-                <el-input v-if="item.bodyForm[colIdx].type === 0" v-model="item.content[scope.$index][colIdx]" @keyup.enter.native="enterLine($event, index, scope.$index, colIdx)" :class="{ 'regular-error': item.regularError[scope.$index][colIdx], 'verify-error': correct[index] !== false && (correct[index] === false || correct[index][scope.$index][colIdx] === false) }" @input="validateInput(item.bodyForm[colIdx].regularRule, item.content[scope.$index][colIdx], index, { row: scope.$index, col: colIdx })" placeholder="请输入内容" :maxlength="item.bodyForm[colIdx].max" size="mini" :disabled="redactStateC === '查看'" :id="'input' + index + scope.$index + colIdx"/>
+                <!--争对广东省体外录入做特殊处理-->
+                <el-input v-if="item.bodyForm[colIdx].type === 0 && !(previewData.table_name.includes('广东省人民医院体外录入') && item.header[colIdx] === '停跳液量mL' && !item.content[scope.$index][colIdx - 1].includes('(ml)'))" v-model="item.content[scope.$index][colIdx]" @keyup.enter.native="enterLine($event, index, scope.$index, colIdx)" :class="{ 'regular-error': item.regularError[scope.$index][colIdx], 'verify-error': correct[index] !== false && (correct[index] === false || correct[index][scope.$index][colIdx] === false) }" @input="validateInput(item.bodyForm[colIdx].regularRule, item.content[scope.$index][colIdx], index, { row: scope.$index, col: colIdx })" placeholder="请输入内容" :maxlength="item.bodyForm[colIdx].max" size="mini" :disabled="redactStateC === '查看'" :id="'input' + index + scope.$index + colIdx"/>
                 <el-input v-if="item.bodyForm[colIdx].type === 1" v-model="item.content[scope.$index][colIdx]" @keyup.enter.native="enterLine($event, index, scope.$index, colIdx)" :class="{ 'regular-error': item.regularError[scope.$index][colIdx], 'verify-error': correct[index] !== false && (correct[index] === false || correct[index][scope.$index][colIdx] === false) }" @input="validateInput(item.bodyForm[colIdx].regularRule, item.content[scope.$index][colIdx], index, { row: scope.$index, col: colIdx })" type="textarea" :maxlength="item.bodyForm[colIdx].max" :rows="2" placeholder="请输入内容" size="mini" :disabled="redactStateC === '查看'" :id="'input' + index + scope.$index + colIdx"/>
                 <el-date-picker v-if="item.bodyForm[colIdx].type === 4" v-model="item.content[scope.$index][colIdx]" @keyup.enter.native="enterLine($event, index, scope.$index, colIdx)" :class="{ 'verify-error': correct[index] !== false && (correct[index] === false || correct[index][scope.$index][colIdx] === false) }" :type="item.bodyForm[colIdx].dateType" placeholder="选择日期" style="width: 100%" size="mini" format="yyyy-MM-dd HH:mm" value-format="yyyy-MM-dd HH:mm" :disabled="redactStateC === '查看'" :id="'input' + index + scope.$index + colIdx"/>
                 <el-input-number v-if="item.bodyForm[colIdx].type === 5" v-model="item.content[scope.$index][colIdx]" @keyup.enter.native="enterLine($event, index, scope.$index, colIdx)" :class="{ 'verify-error': correct[index] !== false && (correct[index] === false || correct[index][scope.$index][colIdx] === false) }" @change="numChange(item.content[scope.$index][colIdx], index, { row: scope.$index, col: colIdx })" label="数" style="width: 100%" size="mini" :disabled="redactStateC === '查看'" :id="'input' + index + scope.$index + colIdx"/>
                 <el-slider v-if="item.bodyForm[colIdx].type === 6" v-model="item.content[scope.$index][colIdx]" @keyup.enter.native="enterLine($event, index, scope.$index, colIdx)" :class="{ 'verify-error': correct[index] !== false && (correct[index] === false || correct[index][scope.$index][colIdx] === false) }" :min="item.bodyForm[colIdx].min" :max="item.bodyForm[colIdx].max" style="padding: 0 20px" size="mini" :disabled="redactStateC === '查看'" :id="'input' + index + scope.$index + colIdx"/>
-                <el-autocomplete v-if="item.bodyForm[colIdx].type === 7" v-model="item.content[scope.$index][colIdx]" @keyup.enter.native="enterLine($event, index, scope.$index, colIdx)" :class="{ 'regular-error': item.regularError[scope.$index][colIdx], 'verify-error': correct[index] !== false && (correct[index] === false || correct[index][scope.$index][colIdx] === false) }" @select="selectTips($event.value, index, { row: scope.$index, col: colIdx })" @blur="selectTips(item.content[scope.$index][colIdx], index, { row: scope.$index, col: colIdx })" class="tb-inline-input" :fetch-suggestions="querySearch" placeholder="请输入内容" size="mini" :disabled="redactStateC === '查看'" @focus="sugFocus(index, 'table', colIdx)" :id="'input' + index + scope.$index + colIdx"/>
+                <el-autocomplete v-if="item.bodyForm[colIdx].type === 7" v-model="item.content[scope.$index][colIdx]" @keyup.enter.native="enterLine($event, index, scope.$index, colIdx)" :class="{ 'regular-error': item.regularError[scope.$index][colIdx], 'verify-error': correct[index] !== false && (correct[index] === false || correct[index][scope.$index][colIdx] === false) }" @select="selectTips($event.value, index, { row: scope.$index, col: colIdx })" @blur="selectTips(item.content[scope.$index][colIdx], index, { row: scope.$index, col: colIdx })" class="tb-inline-input" :fetch-suggestions="querySearch" placeholder="请输入内容" size="mini" :disabled="redactStateC === '查看'" @focus="sugFocus(index, 'table', colIdx)" :id="'input' + index + scope.$index + colIdx" clearable/>
                 <span v-if="item.regularError[scope.$index][colIdx]" class="regular-tips">{{ item.bodyForm[colIdx].regularTips }}</span>
               </div>
             </template>
@@ -120,6 +121,10 @@ export default {
       console.log(this.previewData, 782)
       this.redactStateC = this.previewData.redactState
       this.correct = JSON.parse(this.previewData.verify_correct)
+    },
+    // 多选框，保证选中后值的顺序一致，避免校验出错
+    ecgChange(idx) {
+      this.previewData.content[idx].content.sort()
     },
     enterLine(e, idx, rowIdx, colIdx) {
       if (rowIdx === this.previewData.content[idx].content.length - 1) {
@@ -306,9 +311,15 @@ export default {
               if (itemOne.bodyForm[indexThree].type === 4 && !itemThree) {
                 errorTxt = '第' + (indexOne + 1) + '题第' + (indexTwo + 1) + '行日期的值不能为空！'
               }
-              console.log(itemOne.bodyForm,indexOne,itemThree,14,indexTwo,indexThree)
               if (itemOne.bodyForm[indexThree].type === 0 || itemOne.bodyForm[indexThree].type === 1) {
-                errorRegular += this.validateInput(itemOne.bodyForm[indexThree]['regularRule'], itemThree, indexOne, { row: indexTwo, col: indexThree })
+                console.log(itemOne.content[indexTwo][indexThree - 1],7896,indexOne,(itemOne.content[indexTwo][indexThree - 1] + '|').includes('ml'))
+                if (itemOne.header[indexThree] === '停跳液量mL') { // 争对广东体外循环表单
+                  if ((itemOne.content[indexTwo][indexThree - 1] + '|').includes('ml')) {
+                    errorRegular += this.validateInput(itemOne.bodyForm[indexThree]['regularRule'], itemThree, indexOne, { row: indexTwo, col: indexThree })
+                  }
+                } else {
+                  errorRegular += this.validateInput(itemOne.bodyForm[indexThree]['regularRule'], itemThree, indexOne, { row: indexTwo, col: indexThree })
+                }
               }
               if (itemOne.bodyForm[indexThree].type === 7) {
                 errorRegular += this.selectTips(itemThree, indexOne, { row: indexTwo, col: indexThree })
@@ -371,7 +382,10 @@ export default {
           type: 'error',
           message: err
         })
-        this.submitLoading = false
+        const self = this
+        setTimeout(() => {
+          self.submitLoading = false
+        }, 50000)
       })
     },
     editForm() {
@@ -620,4 +634,5 @@ export default {
     background-color: #409eff;
     z-index: 999;
   }
+
 </style>
