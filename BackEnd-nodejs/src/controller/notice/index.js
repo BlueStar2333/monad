@@ -96,7 +96,7 @@ const ArcherySendMailBefore = (req, res) => {
         let htmlContent = `<p style="font-weight: 600;padding-bottom: 10px;">${name}的数据申请已提交，请尽快前往数据平台审核!</p>
                             <p style="color: #333;padding: 20px 0 30px;border: 1px dashed rgba(0, 0, 0, .3);border-left:none;border-right:none;">用途说明：<br/><span style="color: #666;">${title}</span>
                             <br/><br/>SQL查询脚本：<br/><span style="color: #666;">${sqlText}</span></p><br/>
-                            <img src="https://file.imgcc.cloud/images/2024/11/12/8ca0c32a986eaef33f61099e9ac3bb81.png" style="width: 300px;" alt="微信图片 20241112234131" border="0">`
+                            <img src="https://pic1.imgdb.cn/item/67fe839d88c538a9b5d1f8ad.png" style="width: 300px;" alt="微信图片 20241112234131" border="0">`
         let titleContent = `【 管理员审核通知 】CHICVSDB_数据申请结果_${name}_${Format(new Date())}`
         transport.sendMail({
           from : '"CHICVSDB管理员" <chicvsdb@163.com>', //发件人
@@ -115,135 +115,165 @@ const ArcherySendMailBefore = (req, res) => {
 };
 
 const ArcherySendMail = (req, res) => {
-  $api.PostArg(req).then(({ address, tableHead, tableData, sqlText, title , result, name}) => {
-    const reqTableHead = JSON.parse(Buffer.from(tableHead, 'base64').toString('utf8'))
-    const reqTableData = JSON.parse(Buffer.from(tableData, 'base64').toString('utf8'))
-    // 发送邮件
-    async function sendEmailWithCsvAttachment(data, address, sqlText, title, result, name) { // result为0时代表拒绝，为1代表通过
-      //开启一个 SMTP 连接池
-      var transport = nodemailer.createTransport({
-        host : 'smtp.163.com', //QQ邮箱的 smtp 服务器地址
-        secure : true, //使用 SSL 协议
-        // secureConnection : false, //是否使用对 https 协议的安全连接
-        port : 465, //QQ邮件服务所占用的端口
-        auth : {
-            user : 'chicvsdb@163.com', //开启 smtp 服务的发件人邮箱，用于发送邮件给其他人
-            pass : 'LMe67zSv3SjKpPGB' //SMTP 服务授权码
-        }
-      })
-    
-      // 创建CSV数据流
-      const csvStream = createCsvDataStream(data);
-      const csvBuffer = [];
-    
-      // 使用 Promise 包装流处理
-      const csvContent = await new Promise((resolve, reject) => {
-          csvStream.on('data', chunk => {
-              csvBuffer.push(chunk);
-            //   console.log('Data chunk received:', chunk.toString());
-          });
-    
-          csvStream.on('end', () => {
-            //   console.log('CSV stream ended');
-              resolve(Buffer.concat(csvBuffer));
-          });
-    
-          csvStream.on('error', error => {
-            //   console.error('CSV stream error:', error);
-              reject(error);
-          });
-      });
-    
-      // 创建 ZIP 数据流
-      const zipStream = archiver('zip', { 
-        zlib: { level: 9 }, // 压缩级别
-        partSize: 5 * 1024 * 1024 // 每个分卷的大小，单位为字节（这里是5MB）
-      });
-      
-      const zipBuffers = [];
-      const filenames = [];
-      let currentPart = 1;
-      let currentBuffer = [];
-      
-      // 使用 Promise 包装流处理
-      const zipContent = await new Promise((resolve, reject) => {
-        zipStream.on('data', chunk => {
-          currentBuffer.push(chunk);
-          if (currentBuffer.reduce((total, buf) => total + buf.length, 0) >= zipStream.options.partSize) {
-            zipBuffers.push(Buffer.concat(currentBuffer));
-            filenames.push(`chicsvdb_data.zip.${String(currentPart).padStart(3, '0')}`); // 生成文件名
-            currentBuffer = [];
-            currentPart++;
-            console.log(`Created part${currentPart - 1}`);
-          }
-        });
-      
-        zipStream.on('finish', () => {
-          if (currentBuffer.length > 0) {
-            zipBuffers.push(Buffer.concat(currentBuffer));
-            filenames.push(`chicsvdb_data.zip.${String(currentPart).padStart(3, '0')}`); // 生成最后一个分卷的文件名
-            console.log(`Created part${currentPart}`);
-          }
-          resolve({ zipBuffers, filenames });
-        });
-      
-        zipStream.on('error', error => {
-          reject(error);
-        });
-      
-        zipStream.append(csvContent, { name: 'data.csv' });
-        zipStream.finalize();
-      });
-    
-      let attachmentsContent = []
-      zipContent.zipBuffers.forEach((item,index) => {
-        attachmentsContent.push({
-          filename: zipContent.filenames[index],
-          content: item,
-          // content: Buffer.from('id,name,email\n1,张1,zhangsan@example.com\n2,李四,lisi@example.com') // 这里可以是Buffer对象，也可以是Stream
-        })
-      })
-    
-      let htmlContent = `<p style="font-weight: 600;padding-bottom: 10px;">${result ? '申请已同意，请尽快下载数据!' : '申请已拒绝，请修改后重新提交!' }</p>
-                          <p style="color: #333;padding: 10px 0 30px;border: 1px dashed rgba(0, 0, 0, .3);border-left:none;border-right:none;"><br/>SQL查询脚本：<br/><span style="color: #666;">${sqlText}</span></p><br/>
-                          <img src="https://file.imgcc.cloud/images/2024/11/12/8ca0c32a986eaef33f61099e9ac3bb81.png" style="width: 300px;" alt="微信图片 20241112234131" border="0">`
-      let titleContent = `【 数据申请结果 】CHICVSDB_数据申请结果_${title}_${Format(new Date())}`
-    
-      var mailOption = {
-        from : '"CHICVSDB管理员" <chicvsdb@163.com>', //发件人
-        to : address, //收件人
-        subject : titleContent, //标题
-        html : htmlContent, //正文，可使用 HTML 格式进行渲染
-        attachments: result ? attachmentsContent : null //添加附件
-      }
-    
-      transport.sendMail(mailOption,(err,resp) => {
-        if(err){//执行错误
-            // console.log(err,456)
-            $api.ReturnJson(res, { code: 0, msg: "发送失败", data: 1 });
-        } else {
-            // console.log(resp,2222)
-            adminEmails.forEach(item => {
-              let htmlContent = `<p style="font-weight: 600;padding-bottom: 10px;">${name}${result ? '的数据申请已通过管理员审核!' : '的数据申请已被管理员拒绝!' }</p>
-                                  <p style="color: #333;padding: 20px 0 30px;border: 1px dashed rgba(0, 0, 0, .3);border-left:none;border-right:none;">用途说明：<br/><span style="color: #666;">${title}</span>
-                                  <br/><br/>SQL查询脚本：<br/><span style="color: #666;">${sqlText}</span></p><br/>
-                                  <img src="https://file.imgcc.cloud/images/2024/11/12/8ca0c32a986eaef33f61099e9ac3bb81.png" style="width: 300px;" alt="微信图片 20241112234131" border="0">`
-              let titleContent = `【 管理员审核通知 】CHICVSDB_数据申请结果_${name}_${Format(new Date())}`
-              transport.sendMail({
-                from : '"CHICVSDB管理员" <chicvsdb@163.com>', //发件人
-                to : item, //收件人
-                subject : titleContent, //标题
-                html : htmlContent, //正文，可使用 HTML 格式进行渲染
-              })
-            }, (err,resp) => {})
-            $api.ReturnJson(res, { code: YES, msg: "发送成功", data: 1 });
-        }     
-       transport.close(); // 如果没用，则关闭连接池
-      })
-    }
+  $api.PostArg(req).then(({ address, sqlText, title , result, name, attachments}) => {
+    attachments = attachments == undefined ? [] : attachments
+    // 解析并批量转换所有行
+    const fileData = attachments.map(item => {
+        const buffer = Buffer.from(item.content, 'base64');
+        return {
+            filename: item.filename,
+            content: buffer,  // Node.js 中用 Buffer 替代 BytesIO
+            $originalType: item.original_type  // 保留原始类型标记
+        };
+    });
 
-    const data = transformData(reqTableHead,reqTableData)
-    sendEmailWithCsvAttachment(data, address, sqlText, title, result, name);
+  async function sendEmailWithCsvAttachment(address, sqlText, title, result, name) {
+    // 开启一个 SMTP 连接池
+    var transport = nodemailer.createTransport({
+      host: 'smtp.163.com', 
+      secure: true, 
+      port: 465, 
+      auth: {
+        user: 'chicvsdb@163.com', 
+        pass: 'LMe67zSv3SjKpPGB' 
+      }
+    });
+  
+    let htmlContent = `<p style="font-weight: 600;padding-bottom: 10px;">${result ? '申请已同意，请尽快下载数据!' : '申请已拒绝，请修改后重新提交!' }</p>
+                        <p style="color: #333;padding: 10px 0 30px;border: 1px dashed rgba(0, 0, 0, .3);border-left:none;border-right:none;"><br/>SQL查询脚本：<br/><span style="color: #666;">${sqlText}</span></p><br/>
+                        <img src="https://pic1.imgdb.cn/item/67fe839d88c538a9b5d1f8ad.png" style="width: 300px;" alt="微信图片 20241112234131" border="0">`;
+    let titleContent = `【 数据申请结果 】CHICVSDB_数据申请结果_${title}_${Format(new Date())}`;
+  
+    const sendBatchEmails = (fileDataSegments) => {
+      fileDataSegments.forEach((segment, index) => {
+        let mailOption = {
+          from: '"CHICVSDB管理员" <chicvsdb@163.com>',
+          to: address,
+          subject: titleContent,
+          html: htmlContent,
+          attachments: segment.length > 0 ? segment : null
+        };
+  
+        transport.sendMail(mailOption, (err, resp) => {
+          if(err){
+            $api.ReturnJson(res, { code: 0, msg: "发送失败", data: 1 });
+          } else if(index === fileDataSegments.length - 1) {
+            // 最后一封邮件发送成功后的处理
+            adminEmails.forEach(item => {
+              let htmlContentAdmin = `<p style="font-weight: 600;padding-bottom: 10px;">${name}${result ? '的数据申请已通过管理员审核!' : '的数据申请已被管理员拒绝!' }</p>
+                                      <p style="color: #333;padding: 20px 0 30px;border: 1px dashed rgba(0, 0, 0, .3);border-left:none;border-right:none;">用途说明：<br/><span style="color: #666;">${title}</span>
+                                      <br/><br/>SQL查询脚本：<br/><span style="color: #666;">${sqlText}</span></p><br/>
+                                      <img src="https://pic1.imgdb.cn/item/67fe839d88c538a9b5d1f8ad.png" style="width: 300px;" alt="微信图片 20241112234131" border="0">`;
+              let titleContentAdmin = `【 管理员审核通知 】CHICVSDB_数据申请结果_${name}_${Format(new Date())}`;
+              transport.sendMail({
+                from: '"CHICVSDB管理员" <chicvsdb@163.com>',
+                to: item,
+                subject: titleContentAdmin,
+                html: htmlContentAdmin,
+              });
+            });
+            $api.ReturnJson(res, { code: YES, msg: "发送成功", data: 1 });
+          }
+        });
+      });
+    };
+  
+    if(result && fileData.length > 9) {
+      // 分割fileData为多个长度不超过9的数组
+      let fileDataSegments = [];
+      for(let i = 0; i < fileData.length; i += 9) {
+        fileDataSegments.push(fileData.slice(i, i + 9));
+      }
+      sendBatchEmails(fileDataSegments);
+    } else {
+      // 直接发送
+      let mailOption = {
+        from: '"CHICVSDB管理员" <chicvsdb@163.com>',
+        to: address,
+        subject: titleContent,
+        html: htmlContent,
+        attachments: result ? fileData : null
+      };
+      transport.sendMail(mailOption, (err, resp) => {
+        if(err){
+          $api.ReturnJson(res, { code: 0, msg: "发送失败", data: 1 });
+        } else {
+          adminEmails.forEach(item => {
+            let htmlContentAdmin = `<p style="font-weight: 600;padding-bottom: 10px;">${name}${result ? '的数据申请已通过管理员审核!' : '的数据申请已被管理员拒绝!' }</p>
+                                    <p style="color: #333;padding: 20px 0 30px;border: 1px dashed rgba(0, 0, 0, .3);border-left:none;border-right:none;">用途说明：<br/><span style="color: #666;">${title}</span>
+                                    <br/><br/>SQL查询脚本：<br/><span style="color: #666;">${sqlText}</span></p><br/>
+                                    <img src="https://pic1.imgdb.cn/item/67fe839d88c538a9b5d1f8ad.png" style="width: 300px;" alt="微信图片 20241112234131" border="0">`;
+            let titleContentAdmin = `【 管理员审核通知 】CHICVSDB_数据申请结果_${name}_${Format(new Date())}`;
+            transport.sendMail({
+              from: '"CHICVSDB管理员" <chicvsdb@163.com>',
+              to: item,
+              subject: titleContentAdmin,
+              html: htmlContentAdmin,
+            });
+          });
+          $api.ReturnJson(res, { code: YES, msg: "发送成功", data: 1 });
+        }
+      });
+    }
+  
+    transport.close(); // 如果没用，则关闭连接池
+  }
+
+
+    // // 发送邮件
+    // async function sendEmailWithCsvAttachment(address, sqlText, title, result, name) { // result为0时代表拒绝，为1代表通过
+    //   //开启一个 SMTP 连接池
+    //   var transport = nodemailer.createTransport({
+    //     host : 'smtp.163.com', //QQ邮箱的 smtp 服务器地址
+    //     secure : true, //使用 SSL 协议
+    //     // secureConnection : false, //是否使用对 https 协议的安全连接
+    //     port : 465, //QQ邮件服务所占用的端口
+    //     auth : {
+    //         user : 'chicvsdb@163.com', //开启 smtp 服务的发件人邮箱，用于发送邮件给其他人
+    //         pass : 'LMe67zSv3SjKpPGB' //SMTP 服务授权码
+    //     }
+    //   })
+    
+    //   let htmlContent = `<p style="font-weight: 600;padding-bottom: 10px;">${result ? '申请已同意，请尽快下载数据!' : '申请已拒绝，请修改后重新提交!' }</p>
+    //                       <p style="color: #333;padding: 10px 0 30px;border: 1px dashed rgba(0, 0, 0, .3);border-left:none;border-right:none;"><br/>SQL查询脚本：<br/><span style="color: #666;">${sqlText}</span></p><br/>
+    //                       <img src="https://pic1.imgdb.cn/item/67fe839d88c538a9b5d1f8ad.png" style="width: 300px;" alt="微信图片 20241112234131" border="0">`
+    //   let titleContent = `【 数据申请结果 】CHICVSDB_数据申请结果_${title}_${Format(new Date())}`
+    
+    //   var mailOption = {
+    //     from : '"CHICVSDB管理员" <chicvsdb@163.com>', //发件人
+    //     to : address, //收件人
+    //     subject : titleContent, //标题
+    //     html : htmlContent, //正文，可使用 HTML 格式进行渲染
+    //     // attachments: result ? attachmentsContent : null //添加附件
+    //     attachments: result ? fileData : null //添加附件
+    //   }
+    
+    //   transport.sendMail(mailOption,(err,resp) => {
+    //     if(err){//执行错误
+    //         // console.log(err,456)
+    //         $api.ReturnJson(res, { code: 0, msg: "发送失败", data: 1 });
+    //     } else {
+    //         // console.log(resp,2222)
+    //         adminEmails.forEach(item => {
+    //           let htmlContent = `<p style="font-weight: 600;padding-bottom: 10px;">${name}${result ? '的数据申请已通过管理员审核!' : '的数据申请已被管理员拒绝!' }</p>
+    //                               <p style="color: #333;padding: 20px 0 30px;border: 1px dashed rgba(0, 0, 0, .3);border-left:none;border-right:none;">用途说明：<br/><span style="color: #666;">${title}</span>
+    //                               <br/><br/>SQL查询脚本：<br/><span style="color: #666;">${sqlText}</span></p><br/>
+    //                               <img src="https://pic1.imgdb.cn/item/67fe839d88c538a9b5d1f8ad.png" style="width: 300px;" alt="微信图片 20241112234131" border="0">`
+    //           let titleContent = `【 管理员审核通知 】CHICVSDB_数据申请结果_${name}_${Format(new Date())}`
+    //           transport.sendMail({
+    //             from : '"CHICVSDB管理员" <chicvsdb@163.com>', //发件人
+    //             to : item, //收件人
+    //             subject : titleContent, //标题
+    //             html : htmlContent, //正文，可使用 HTML 格式进行渲染
+    //           })
+    //         }, (err,resp) => {})
+    //         $api.ReturnJson(res, { code: YES, msg: "发送成功", data: 1 });
+    //     }     
+    //    transport.close(); // 如果没用，则关闭连接池
+    //   })
+    // }
+
+    sendEmailWithCsvAttachment(address, sqlText, title, result, name);
 	})
 };
 
